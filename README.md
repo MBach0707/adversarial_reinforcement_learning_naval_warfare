@@ -108,6 +108,7 @@ Future directions suggested in the thesis include:
 ```
 naval-combat-rl/
 ├── notebooks/          # Experiments and training runs
+├── practise_games/     # Initial framework tests
 ├── figures/            # Training curves, trajectory plots, loss plots
 ├── thesis.pdf          # Full MSc thesis
 └── requirements.txt    # Python dependencies
