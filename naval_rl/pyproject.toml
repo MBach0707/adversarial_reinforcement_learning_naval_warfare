@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "naval-rl"
+version = "0.2.0"
+description = "Adversarial reinforcement learning for naval warfare simulation"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+
+authors = [
+  { name = "Michael Bach", email = "michaelbach0707@gmail.com" }
+]
+
+keywords = ["reinforcement-learning", "multi-agent", "naval", "simulation", "defense"]
+
+dependencies = [
+  "gymnasium>=0.29",
+  "torch>=2.0",
+  "numpy>=1.24",
+  "pyyaml>=6.0",
+  "matplotlib>=3.7",
+  "imageio>=2.31",
+  "tqdm>=4.65",
+  "scipy>=1.11",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.4",
+  "flake8>=6.1",
+  "black>=23.0",
+]
+wandb = [
+  "wandb>=0.16",
+]
+viz = [
+  "seaborn>=0.12",
+  "imageio[ffmpeg]>=2.31",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
