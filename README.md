@@ -1,135 +1,181 @@
-# Boosted Decision-Making with Adversarial Reinforcement Learning Agents in Naval Warfare
+# Adversarial Reinforcement Learning in Naval Warfare
 
 *MSc Thesis · University of Copenhagen, Faculty of Science · 2025*  
-*In collaboration with TERMA A/S*  
-*University Advisor: Professor Troels Christian Petersen*  
-*Company Advisor: Jens Egeløkke Frederiksen, TERMA*
+*In collaboration with TERMA A/S*
+
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-orange)
+![Gymnasium](https://img.shields.io/badge/Gymnasium-0.29%2B-green)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
+[![CI](https://github.com/MBach0707/adversarial-reinforcement-learning-naval-warfare/actions/workflows/ci.yml/badge.svg)](https://github.com/MBach0707/adversarial-reinforcement-learning-naval-warfare/actions)
 
 ---
 
 ## Overview
 
-This thesis investigates whether adversarial reinforcement learning can be used to discover emergent tactics in naval warfare simulations — and whether those tactics could boost the decision-making of real warfare officers.
+This project investigates whether adversarial reinforcement learning can surface **emergent naval tactics** — manoeuvres that human commanders might not discover within the constraints of real-world exercise time and risk.
 
-The central question, motivated by how chess engines have transformed professional chess:
+The central analogy: chess engines transformed professional chess by revealing tactics beyond human calculation horizons. Could a similar approach give commanding officers an edge in real anti-surface warfare?
 
-> *"If AI can boost decision-making for players in games, could a similar approach give advantages in real-world military contexts?"*
+Two independent TD3 agents — **Alice** and **Bob** — command opposing fleets on a continuous 200×200 km battlespace. They learn simultaneously, each adapting to the other's evolving strategy, producing an adversarial arms race of tactical discovery.
 
-The approach draws a direct analogy between chess engines augmenting grandmasters and a naval simulator augmenting commanding officers. Just as chess players now train with engines to find tactics beyond human calculation horizons, the hypothesis is that adversarial RL agents could explore the vast tactical state-space of naval engagements and surface novel maneuver strategies.
-
----
-
-## What Was Built
-
-### Mathematical Framework for Tactics
-
-Using game theory, a formal definition of tactics is developed from first principles — first in the context of chess, then extended to a continuous naval environment. A tactic is defined as a set of trajectories navigating from a set of starting states to end states with higher estimated evaluation value, while anticipating opponent counterplay. Three categories of tactics are introduced: human, superhuman, and inconceivable — mirroring the evolution seen in chess since Deep Blue.
-
-### Naval Simulation Environment
-
-A custom naval warfare simulator was built using the standard `gymnasium` Python framework. The environment models anti-surface warfare on a continuous 2D plane (200×200 km), with:
-
-- Ships as point agents with continuous position, heading, and speed
-- A hybrid action space: continuous (course, speed) × discrete (missile salvo, targeting)
-- Physics-constrained movement with realistic naval parameters (max speed ~20 knots, weapon range 10 km)
-- Stochastic missile engagements modeled with hit probabilities
-- Discrete status flags (alive/dead, firing threshold, targeting) embedded in a continuous state vector
-
-### Adversarial Commander Framework
-
-Two independent DDPG agents — named Alice and Bob — are trained simultaneously in the environment, each commanding a fleet. Both observe the same state, act simultaneously each timestep, and receive separate reward signals. The framework implements:
-
-- Twin Delayed Deep Deterministic Policy Gradient (TD3) with dual critics per agent
-- Separate replay buffers per agent, persisting across episodes
-- Soft target network updates (Polyak averaging)
-- Delayed actor updates to allow critic stabilization
-- Target policy smoothing to prevent overfit on sharp Q-value peaks
-
-### Reward Shaping Through Physical Potential Fields
-
-Rather than hand-coding tactical rules, rewards are shaped using potential field mechanics borrowed from physics — allowing tactics to *emerge* from learned behavior rather than being prescribed. Fields implemented include:
-
-- **Modified Gravity**: Encourages fleets to seek out opponents at long range, with a linear attraction term added for gradient stability at distance
-- **Lennard-Jones Potential**: Guides ships with range superiority to maintain optimal engagement distances (attractive at long range, repulsive at close range), adapted from atomic physics with exponents n=4, m=2
-- **Formation Cohesion Potential**: LJ-style potential between friendly ships, rewarding concentration of forces while preventing collision
-- **Confining Boundary Potential**: Inverse-distance penalty for approaching grid edges, keeping engagements in the open sea
-- **Predictive Intercept Field**: Dead-reckoning based potential field placed at the anticipated future position of opponent ships, encouraging interception rather than reactive pursuit
-
-This approach treats reward maximization as analogous to energy minimization in physical systems.
+*The author served as a Lieutenant Commander and Senior Navigation Officer aboard HDMS ABSALON — the same class of frigate modelled in the simulation. All physics parameters and scenario designs are grounded in operational experience.*
 
 ---
 
-## Results
+## Demo
 
-### What Worked
+> *GIF of trained agents in the cat-and-mouse scenario — Alice's two-ship fleet (blue) intercepting Bob's evasive single ship (red)*
 
-The simple single-agent setup (one ship navigating to a goal) converges cleanly, with the policy flow field evolving from random to optimal direct-route trajectories across training steps. This validates the DDPG implementation.
-
-In the **Simple Attraction** scenario (1v1, annihilation objective), agents initially converge toward expected direct approach trajectories toward each other — qualitatively correct behavior.
-
-In the **Cat and Mouse** scenario (asymmetric: Alice hunts, Bob flees), the asymmetric reward structure produced more stable early training than symmetric setups, and the correct directional behavior (Alice approaching, Bob retreating) was observed in early episodes.
-
-### Stability Issues — Honest Assessment
-
-The core challenge of the thesis is training stability in the adversarial multi-agent setting. Several failure modes were consistently encountered:
-
-**Circular reward hacking (hysteresis):** As noise decays and the scenario becomes increasingly symmetric, agents enter circular orbital dynamics rather than engaging. This is a known pathology of symmetric adversarial DDPG — the only asymmetry driving behavior is noise, which anneals away. The agents discover that orbiting outside weapon range while accumulating step rewards is locally optimal.
-
-**Policy collapse in multi-ship scenarios:** Adding a second ship to Alice's fleet caused training to degrade — the second ship failed to develop meaningful coupling between its state and actions, while Bob's policy stagnated entirely.
-
-**Hybrid action space instability:** Extending the action space to include discrete firing mechanics (via continuous-to-discrete rounding) introduced near-discontinuities in the reward landscape that the critic could not reliably approximate. The rare occurrence of shooting events (~5 per 100 episodes) caused severe sampling imbalance, and biased sampling from a separate rare-event replay buffer did not resolve the issue.
-
-**Mutual overtraining:** The adversarial feedback loop caused agents to overtrain against each other's current policy rather than developing robust general strategies. The policies oscillated between local maxima rather than converging.
-
-### Identified Root Causes
-
-1. DDPG's sensitivity to near-discontinuities from the discrete action transformation
-2. Hyperparameter search space likely insufficient given the environment's complexity
-3. Energy potential reward gradients may be too steep at close range for stable critic approximation
-4. Fully decoupled simultaneous training amplifies instability — each agent's environment is non-stationary from the other's perspective
+*(Run `python scripts/train.py --config configs/cat_and_mouse.yaml` then `python scripts/evaluate.py --checkpoint outputs/cat_and_mouse/alice_final.pt` to generate)*
 
 ---
 
-## Key Technical Takeaways
+## Key Technical Contributions
 
-The hybrid state-action space (continuous movement × discrete engagements) is the central unsolved problem. Standard DDPG and TD3 are designed for fully continuous spaces. The approximation of discrete actions via rounding introduces gradient discontinuities that destabilize the critic's Q-value estimates, particularly for rare events like missile engagements.
+### 1. Custom Gymnasium Environment
 
-Future directions suggested in the thesis include:
+A full `gymnasium.Env`-compliant naval warfare simulator supporting:
 
-- **Alternating training**: Lock one agent while the other trains, reducing mutual non-stationarity
-- **MADDPG with centralized critic**: Potentially more stable but introduces bias toward cooperative behavior
-- **Reward redesign**: Physics-based potential fields may impose overly deterministic dynamics — simpler behavioral reward signals (e.g., rewarding closing rate, penalizing idle behavior) may provide better gradient landscapes
-- **Entropy-based or cyclical noise schemes**: To maintain exploration at different phases without the asymmetry collapse seen with decaying epsilon-greedy noise
+- Continuous 2-D battlespace with physics-constrained movement (knots → m/min)
+- Hybrid action space: `[speed_fraction, course, fire_fraction, target_fraction]` per ship
+- Multi-ship fleets with configurable weapons (SSM, artillery) and air-defence systems (SAM)
+- Stochastic missile engagement resolution with AD intercept mechanics
+- Configurable via YAML — swap scenarios without touching code
+
+### 2. Physics-Inspired Reward Shaping
+
+Rather than hand-coding tactical rules, tactics *emerge* from energy minimisation over five composable potential fields:
+
+| Field | Physics Analogy | Naval Behaviour Encouraged |
+|---|---|---|
+| **Modified Gravity** | 1/D attraction + linear term | Approach opponent at range |
+| **Lennard-Jones Supremacy** | Atomic equilibrium distance | Hold at optimal weapon range |
+| **Lennard-Jones Formation** | Inter-molecular cohesion | Concentrate friendly forces |
+| **Predictive Intercept** | Dead-reckoning | Cut off retreating opponent |
+| **Boundary Confinement** | Inverse-distance wall | Stay in operational area |
+
+All fields are implemented as pure functions — independently testable and composable via config weights.
+
+### 3. TD3 with Rare-Event Replay
+
+Standard replay buffers severely undersample missile engagements (~5 per 100 episodes). The `MixedReplayBuffer` maintains a separate rare-event buffer and oversamples firing transitions at a configurable ratio, improving gradient signal for the Q-function near weapon-use events.
+
+### 4. Composable Noise Architecture
+
+Exploration is handled by a hierarchy of composable noise sources: `GaussianNoise`, `OUNoise`, `EpsilonGreedyNoise`, `SparseWeaponNoise` (sparse firing impulses), and `ExpDecayNoise` (annealing wrapper) — all configurable via YAML.
 
 ---
 
 ## Repository Structure
 
 ```
-naval-combat-rl/
-├── notebooks/          # Experiments and training runs
-├── practise_games/     # Initial framework tests
-├── figures/            # Training curves, trajectory plots, loss plots
-├── thesis.pdf          # Full MSc thesis
-└── requirements.txt    # Python dependencies
+adversarial-reinforcement-learning-naval-warfare/
+├── src/
+│   └── naval_rl/
+│       ├── envs/
+│       │   ├── entities.py        # Ship, Weapon, ADMeasure
+│       │   └── naval_env.py       # Gymnasium-compliant environment
+│       ├── agents/
+│       │   ├── td3.py             # TD3 with dual critics + normalisation
+│       │   ├── replay_buffer.py   # Replay + rare-event oversampling
+│       │   └── noise.py           # Composable exploration noise
+│       └── rewards/
+│           └── potential_fields.py # Physics-based reward shaping
+├── configs/
+│   ├── simple_attraction.yaml     # 1v1 baseline (validates convergence)
+│   └── cat_and_mouse.yaml         # 2v1 asymmetric pursuit scenario
+├── scripts/
+│   ├── train.py                   # Training entry point (CLI + W&B)
+│   └── evaluate.py                # Load checkpoint + render trajectory
+├── tests/
+│   └── test_env_and_rewards.py    # Unit tests (pytest)
+├── notebooks/legacy/              # Original research notebooks
+├── thesis.pdf
+├── pyproject.toml
+├── requirements.txt
+└── .github/workflows/ci.yml      # Lint + test on push
 ```
 
 ---
 
-## Tools and Libraries
+## Quick Start
 
-`Python` · `PyTorch` · `TorchRL` · `Stable-Baselines3` · `Gymnasium` · `Pandas` · `SciPy` · `NumPy` · `Matplotlib`
+```bash
+# Clone and install
+git clone https://github.com/MBach0707/adversarial-reinforcement-learning-naval-warfare.git
+cd adversarial-reinforcement-learning-naval-warfare
+pip install -e ".[dev,wandb,viz]"
+
+# Run unit tests
+pytest tests/ -v
+
+# Train — simple 1v1 baseline
+python scripts/train.py --config configs/simple_attraction.yaml
+
+# Train — cat and mouse with W&B logging
+python scripts/train.py --config configs/cat_and_mouse.yaml --wandb
+
+# Evaluate a checkpoint
+python scripts/evaluate.py --checkpoint outputs/cat_and_mouse/alice_final.pt \
+                            --config configs/cat_and_mouse.yaml
+```
+
+---
+
+## Scenarios
+
+### Simple Attraction (`configs/simple_attraction.yaml`)
+
+Symmetric 1v1. Both agents rewarded for reducing inter-fleet distance. Used to validate that the TD3 implementation converges — agents should learn a direct approach trajectory within ~500 episodes.
+
+### Cat and Mouse (`configs/cat_and_mouse.yaml`)
+
+Asymmetric 2v1. Alice commands two frigates (20 knots, Harpoon SSMs, ESSM air defence). Bob commands a single slower vessel (7 knots) and is rewarded for surviving each timestep. The speed asymmetry creates a structurally interesting pursuit-evasion problem: Alice must use formation and predictive intercept rewards to cut off Bob rather than simply chasing.
+
+---
+
+## Agent: Twin Delayed DDPG (TD3)
+
+```
+Actor:  Linear(obs) → ReLU → Linear → ReLU → Linear → ReLU → Linear → Tanh
+Critic: Linear(obs ∥ act) → ReLU → Linear → ReLU → Linear → ReLU → Linear(1)
+
+Two critics per agent (clipped double Q-learning)
+Delayed actor updates (every policy_delay critic steps)
+Target policy smoothing with clipped Gaussian noise
+Gradient clipping: max_norm = 1.0 on all networks
+Optional online RunningMeanStd normalisation for obs and rewards
+```
+
+---
+
+## Honest Assessment of Results
+
+Training stability in the adversarial multi-agent setting remains the central unsolved challenge. Several failure modes were observed and documented:
+
+**Circular reward hacking:** In symmetric scenarios, agents converge to orbital dynamics at mutual weapon range — a locally optimal Nash equilibrium that avoids engagement entirely.
+
+**Policy collapse in multi-ship scenarios:** The second ship in a fleet often fails to develop meaningful state-action coupling while the opponent's policy stagnates.
+
+**Hybrid action space instability:** The discrete firing decision embedded in a continuous action space creates near-discontinuities in the reward landscape that the critic approximates poorly.
+
+These failure modes are documented in detail in `thesis.pdf` along with proposed remedies (alternating training, centralised critic, entropy-regularised noise).
+
+---
+
+## Tools & Libraries
+
+`Python 3.10+` · `PyTorch 2.0+` · `Gymnasium 0.29+` · `NumPy` · `SciPy` · `Matplotlib` · `W&B` · `PyYAML` · `pytest`
 
 ---
 
 ## Background
 
-The author served as a Lieutenant Commander and Senior Navigation Officer aboard HDMS ABSALON — the same class of frigate modeled in the simulation. The environment design, scenario selection, and tactical framing are grounded in direct operational experience, including live naval exercises and anti-surface warfare operations in the Gulf of Guinea.
-
-This domain expertise informed both the physics of the simulation and the qualitative evaluation of whether emergent agent behaviors were tactically plausible.
+The author served as a **Lieutenant Commander and Senior Navigation Officer** aboard HDMS ABSALON — the same class of vessel modelled in this simulation — including live naval exercises and anti-surface warfare operations in the Gulf of Guinea. This operational experience informed the environment physics, scenario design, and qualitative evaluation of whether emergent agent behaviours are tactically plausible.
 
 ---
 
 ## Contact
 
-Michael Bach · michaelbach0707@gmail.com · [linkedin.com/in/michaelbach07](https://linkedin.com/in/michaelbach07)
+Michael Bach · [michaelbach0707@gmail.com](mailto:michaelbach0707@gmail.com) · [linkedin.com/in/michaelbach07](https://linkedin.com/in/michaelbach07)
