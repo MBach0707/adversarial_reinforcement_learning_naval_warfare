@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.eggs/
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Training artefacts — keep GIFs, ignore large binaries and logs
+outputs/**/*.pt
+outputs/**/*.npy
+outputs/**/tb/
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# Tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code
+CLAUDE.md
+
+# W&B
+wandb/

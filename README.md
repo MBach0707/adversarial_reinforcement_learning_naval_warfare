@@ -25,9 +25,52 @@ Two independent TD3 agents — **Alice** and **Bob** — command opposing fleets
 
 ## Demo
 
-> *GIF of trained agents in the cat-and-mouse scenario — Alice's two-ship fleet (blue) intercepting Bob's evasive single ship (red)*
+All animations were generated from trained agent checkpoints. **Engagement** views show missile fire arcs and hit markers. **Ghost** views show trajectory trails across the full episode.
 
-*(Run `python scripts/train.py --config configs/cat_and_mouse.yaml` then `python scripts/evaluate.py --checkpoint outputs/cat_and_mouse/alice_final.pt` to generate)*
+### 1v1 — Simple Attraction
+
+| Engagement | Ghost trails |
+|:---:|:---:|
+| ![1v1 engagement](outputs/1v1_engagement.gif) | ![1v1 ghost](outputs/1v1_ghost.gif) |
+
+Both ships rewarded purely for closing distance. Agents learn a direct approach within ~500 episodes. The baseline scenario used to validate TD3 convergence.
+
+---
+
+### 2v2 — Symmetric Engagement
+
+| Engagement | Ghost trails |
+|:---:|:---:|
+| ![2v2 engagement](outputs/2v2_engagement.gif) | ![2v2 ghost](outputs/2v2_ghost.gif) |
+
+Two-ship fleets trained adversarially. Formation cohesion (Lennard-Jones formation reward) causes Alice's ships to manoeuvre as a pair rather than independently.
+
+---
+
+### 3v3 — Fleet Engagement
+
+![3v3 ghost](outputs/3v3_ghost.gif)
+
+Three ships per side. Ghost trails illustrate how fleet-level structure emerges: ships spread to cover arc, then converge on engagement.
+
+---
+
+### Emergent Tactics
+
+Distinct tactical patterns that emerged without being explicitly programmed — discovered through reward shaping and adversarial co-training.
+
+| Wolfpack | Hit and Run |
+|:---:|:---:|
+| ![wolfpack](outputs/wolfpack_ghost.gif) | ![hit and run](outputs/hit_run_ghost.gif) |
+
+| Ambush | Escort |
+|:---:|:---:|
+| ![ambush](outputs/ambush_ghost.gif) | ![escort](outputs/escort_ghost.gif) |
+
+**Wolfpack** — multiple attackers converge from different bearings to saturate a single defender's AD systems.
+**Hit and Run** — attacker fires at range and immediately retreats before counter-fire can land.
+**Ambush** — attacker holds position along a predicted transit corridor.
+**Escort** — a protecting ship interposes between the threat and a high-value unit.
 
 ---
 
