@@ -19,8 +19,6 @@ The central analogy: chess engines transformed professional chess by revealing t
 
 Two independent TD3 agents — **Alice** and **Bob** — command opposing fleets on a continuous 200×200 km battlespace. They learn simultaneously, each adapting to the other's evolving strategy, producing an adversarial arms race of tactical discovery.
 
-*The author served as a Lieutenant Commander and Senior Navigation Officer aboard HDMS ABSALON — the same class of frigate modelled in the simulation. All physics parameters and scenario designs are grounded in operational experience.*
-
 ---
 
 ## Demo
@@ -259,12 +257,6 @@ The three failure modes identified in the thesis are each mitigated by specific 
 ## Tools & Libraries
 
 `Python 3.10+` · `PyTorch 2.0+` · `Gymnasium 0.29+` · `NumPy` · `SciPy` · `Matplotlib` · `W&B` · `PyYAML` · `pytest`
-
----
-
-## Background
-
-The author served as a **Lieutenant Commander and Senior Navigation Officer** aboard HDMS ABSALON — the same class of vessel modelled in this simulation — including live naval exercises and anti-surface warfare operations in the Gulf of Guinea. This operational experience informed the environment physics, scenario design, and qualitative evaluation of whether emergent agent behaviours are tactically plausible.
 
 ---
 
