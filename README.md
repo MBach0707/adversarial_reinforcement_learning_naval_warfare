@@ -207,6 +207,55 @@ These failure modes are documented in detail in `thesis.pdf` along with proposed
 
 ---
 
+## How Thesis Problems Are Addressed in This Codebase
+
+The three failure modes identified in the thesis are each mitigated by specific design decisions already present in the code. None of them are fully solved — but each is meaningfully constrained.
+
+### Circular Reward Hacking
+
+**Problem:** In symmetric scenarios, agents co-evolve to a locally optimal Nash equilibrium — orbiting each other at weapon range and never engaging.
+
+**Root cause:** Symmetric reward landscapes mean both agents can simultaneously maximise reward by mirroring each other's avoidance. Decaying exploration noise removes the perturbation that might break the orbit.
+
+**Mitigations:**
+
+- **Asymmetric role design** (`configs/cat_and_mouse.yaml`): Alice hunts, Bob evades. Structurally different objectives prevent symmetric equilibria from forming.
+- **Predictive Intercept field** (`rewards/potential_fields.py`, `w_pred`): Rewards dead-reckoning — heading toward the opponent's *future* position rather than current position. An orbiting agent is not cutting off a retreating one, so the intercept field generates a gradient that breaks circular convergence.
+- **Asymmetric time penalties** (YAML `time_penalty`): Alice is penalised for each step without closing; Bob is rewarded for surviving. This creates temporal pressure on the hunting agent that prevents indefinite circling.
+- **`SparseWeaponNoise`** (`agents/noise.py`): Injects random firing impulses during exploration. Agents occasionally fire even while orbiting, generating transitions that reward engagement — disrupting the avoidance equilibrium.
+
+---
+
+### Policy Collapse in Multi-Ship Scenarios
+
+**Problem:** In fleet engagements, the second ship in a fleet typically fails to develop meaningful behaviour. Both ships converge to nearly identical policies, or the second ship becomes effectively passive.
+
+**Root cause:** A single shared policy processes observations from all ships. Without a differentiated incentive structure, the critic cannot learn that the second ship's state-action pairs have independent value.
+
+**Mitigations:**
+
+- **Lennard-Jones Formation field** (`rewards/potential_fields.py`, `w_lj_form`): Rewards maintaining a specific inter-ship distance (equilibrium at ≈ 2 × `d_form`). This creates a gradient that is only non-zero when the two ships are either too close or too far apart — giving the second ship a distinct role in the fleet geometry.
+- **Per-ship `SparseWeaponNoise`** (`agents/noise.py`): Each ship in the fleet receives independent random firing impulses. This ensures both ships generate weapon-use transitions in the replay buffer, preventing the second ship's firing Q-function from atrophying.
+- **Composite noise** (YAML `noise_alice`): The `CompositeNoise` wrapper applies shared manoeuvring noise across the full action vector while layering per-ship weapon noise on top. The separation of concerns gives each ship independent exploration signal on the firing dimension without coupling movement decisions.
+
+---
+
+### Hybrid Action Space Instability
+
+**Problem:** Training diverges or Q-values explode. The critic poorly approximates the value landscape near the firing threshold, producing unreliable gradients.
+
+**Root cause:** The firing decision is embedded as a continuous value (`fire_fraction`) but behaves discretely — a small change crossing 0.5 causes a large, abrupt change in environment dynamics and reward. Critic networks trained with stochastic gradient descent cannot interpolate smoothly across this near-discontinuity.
+
+**Mitigations:**
+
+- **Gradient clipping** (`agents/td3.py`, `max_norm=1.0`): Applied to all network parameters at every update step. Prevents a single high-variance gradient from destabilising the critic in regions near the firing threshold.
+- **Reward normalisation** (`agents/td3.py`, `normalize_rew`): Online Welford running-mean-std normalisation clips reward magnitude to ±5σ before training. Firing events produce reward spikes; normalisation prevents these spikes from dominating critic updates.
+- **Rare-event oversampling** (`agents/replay_buffer.py`, `MixedReplayBuffer`): Firing transitions are tagged (`env.rare_event = True`) and stored in a dedicated buffer. A configurable fraction of each training batch is drawn from this buffer (`rare_ratio=0.1`), providing denser gradient signal near the discontinuity and improving the critic's approximation in that region.
+- **Delayed actor updates** (`agents/td3.py`, `policy_delay=2`): The actor updates half as frequently as the critics. This gives the critics time to stabilise before the actor uses their output as a training signal — reducing feedback oscillation in unstable reward landscapes.
+- **Fire threshold** (`envs/naval_env.py`, `fire_threshold=0.5`): The threshold is fixed and known. The `SparseWeaponNoise` injects values in `[0.6, 1.0]` to guarantee threshold crossing during exploration, so the agent observes the consequences of firing from early in training rather than discovering the threshold by accident.
+
+---
+
 ## Tools & Libraries
 
 `Python 3.10+` · `PyTorch 2.0+` · `Gymnasium 0.29+` · `NumPy` · `SciPy` · `Matplotlib` · `W&B` · `PyYAML` · `pytest`
