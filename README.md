@@ -1,7 +1,6 @@
 # Adversarial Reinforcement Learning in Naval Warfare
 
 *MSc Thesis · University of Copenhagen, Faculty of Science · 2025*  
-*In collaboration with TERMA A/S*
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-orange)
