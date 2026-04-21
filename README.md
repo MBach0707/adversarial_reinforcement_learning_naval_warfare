@@ -5,7 +5,6 @@
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-orange)
 ![Gymnasium](https://img.shields.io/badge/Gymnasium-0.29%2B-green)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
 [![CI](https://github.com/MBach0707/adversarial-reinforcement-learning-naval-warfare/actions/workflows/ci.yml/badge.svg)](https://github.com/MBach0707/adversarial-reinforcement-learning-naval-warfare/actions)
 
 ---
